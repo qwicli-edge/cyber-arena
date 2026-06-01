@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CyberArena — онлайн баталии по ИБ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0e1a 0%, #0c1322 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Авторизация */
+        .auth-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(12px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .auth-card {
+            background: linear-gradient(145deg, #1a1f30, #0f1422);
+            border-radius: 48px;
+            padding: 40px;
+            width: 400px;
+            border: 1px solid #00ff88;
+            box-shadow: 0 0 30px rgba(0,255,100,0.2);
+        }
+        .auth-card h2 { text-align: center; color: #00ff88; margin-bottom: 25px; }
+        .auth-input {
+            width: 100%;
+            padding: 14px;
+            margin: 12px 0;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid #00ff88;
+            border-radius: 40px;
+            color: white;
+            font-size: 1rem;
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 14px;
+            background: #00ff88;
+            border: none;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .error-msg { color: #ff8888; text-align: center; margin-top: 15px; font-size: 0.85rem; }
+        
+        /* Игровой интерфейс */
+        .game-header {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 60px;
+            padding: 15px 25px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            color: white;
+        }
+        .user-stats { display: flex; gap: 25px; flex-wrap: wrap; }
+        .user-stats span { color: #00ff88; font-weight: bold; }
+        .logout-btn {
+            background: rgba(255,70,70,0.3);
+            border: 1px solid #ff6666;
+            padding: 6px 18px;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        
+        /* Таблица лидеров */
+        .leaderboard {
+            background: rgba(0,0,0,0.5);
+            border-radius: 32px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .leaderboard h3 { color: #00ff88; text-align: center; margin-bottom: 15px; }
+        .leaderboard-table { width: 100%; border-collapse: collapse; }
+        .leaderboard-table th, .leaderboard-table td { padding: 10px; text-align: center; color: white; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .leaderboard-table th { color: #00ff88; }
+        
+        /* Режимы */
+        .game-modes { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+        .mode-card {
+            background: rgba(0,0,0,0.6);
+            border-radius: 32px;
+            padding: 25px;
+            width: 280px;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #00ff88;
+            transition: 0.2s;
+        }
+        .mode-card:hover { transform: translateY(-5px); background: rgba(0,0,0,0.8); }
+        .mode-icon { font-size: 3rem; margin-bottom: 15px; }
+        .mode-card h3 { color: #00ff88; margin-bottom: 10px; }
+        
+        /* Выбор сложности в одиночном режиме */
+        .difficulty-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1100;
+        }
+        .difficulty-card {
+            background: linear-gradient(145deg, #1a1f30, #0f1422);
+            border-radius: 48px;
+            padding: 35px;
+            width: 400px;
+            text-align: center;
+            border: 1px solid #00ff88;
+        }
+        .difficulty-card h3 { color: #00ff88; margin-bottom: 25px; font-size: 1.5rem; }
+        .difficulty-option {
+            background: rgba(255,255,255,0.1);
+            border-radius: 40px;
+            padding: 15px 20px;
+            margin: 12px 0;
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: left;
+        }
+        .difficulty-option:hover { background: #00ff88; color: #0a0e1a; }
+        .difficulty-option.easy { border-left: 4px solid #00ff88; }
+        .difficulty-option.medium { border-left: 4px solid #ffaa00; }
+        .difficulty-option.hard { border-left: 4px solid #ff4444; }
+        .difficulty-cancel {
+            background: rgba(255,70,70,0.3);
+            border: 1px solid #ff6666;
+            border-radius: 40px;
+            padding: 12px;
+            margin-top: 20px;
+            cursor: pointer;
+            text-align: center;
+        }
+        
+        /* Комнаты */
+        .rooms-panel {
+            background: rgba(0,0,0,0.5);
+            border-radius: 32px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .rooms-header { display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .create-room-btn {
+            background: #00ff88;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .back-to-menu-btn {
+            background: rgba(255,180,71,0.3);
+            border: 1px solid #ffb347;
+            color: #ffb347;
+            border-radius: 40px;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .room-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .room-badge {
+            background: rgba(0,255,100,0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        .join-btn {
+            background: #00ff88;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        
+        /* Модальное окно выбора режима для комнаты */
+        .mode-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1100;
+        }
+        .mode-modal-card {
+            background: linear-gradient(145deg, #1a1f30, #0f1422);
+            border-radius: 48px;
+            padding: 30px;
+            width: 350px;
+            text-align: center;
+            border: 1px solid #00ff88;
+        }
+        .mode-modal-card h3 { color: #00ff88; margin-bottom: 20px; }
+        .mode-option {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #00ff88;
+            border-radius: 40px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .mode-option:hover { background: #00ff88; color: #0a0e1a; }
+        .mode-option-cancel {
+            background: rgba(255,70,70,0.3);
+            border: 1px solid #ff6666;
+            border-radius: 40px;
+            padding: 12px;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+        
+        /* Зона игры */
+        .quiz-area {
+            background: white;
+            border-radius: 48px;
+            padding: 30px;
+            animation: fadeIn 0.3s ease;
+        }
+        .room-info {
+            background: #1a1f30;
+            color: white;
+            padding: 15px;
+            border-radius: 32px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .participants { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; }
+        .participant {
+            background: rgba(0,255,100,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+        .participant.current { background: #00ff88; color: #0a0e1a; }
+        .question-text { font-size: 1.2rem; margin-bottom: 25px; color: #1a1f30; }
+        .options { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+        .option-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 60px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .option-btn:disabled { opacity: 0.6; }
+        .feedback {
+            background: #1e2a3a;
+            border-radius: 24px;
+            padding: 15px;
+            color: white;
+            margin: 15px 0;
+        }
+        .next-btn {
+            background: #00ff88;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            width: 100%;
+            cursor: pointer;
+        }
+        .hidden { display: none; }
+        
+        @media (max-width: 700px) {
+            .auth-card { width: 90%; padding: 25px; }
+            .question-text { font-size: 1rem; }
+            .option-btn { padding: 12px; font-size: 0.9rem; }
+            .room-item { flex-direction: column; align-items: flex-start; }
+            .difficulty-card { width: 90%; padding: 25px; }
+        }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<div class="container">
+    <!-- Модальное окно входа -->
+    <div id="authModal" class="auth-modal">
+        <div class="auth-card">
+            <h2>⚔️ CYBER ARENA ⚔️</h2>
+            <input type="text" id="playerName" class="auth-input" placeholder="👤 Имя бойца">
+            <button id="enterGameBtn" class="auth-btn">🎮 Вступить в бой</button>
+            <div id="authError" class="error-msg"></div>
+        </div>
+    </div>
+    
+    <!-- Основной интерфейс -->
+    <div id="gameInterface" style="display: none;">
+        <div class="game-header">
+            <div>⚔️ <strong id="userNameDisplay"></strong></div>
+            <div class="user-stats">
+                <span>🏆 Рейтинг: <span id="totalScoreDisplay">0</span></span>
+                <span>🎮 Битв: <span id="gamesPlayedDisplay">0</span></span>
+                <button id="logoutBtn" class="logout-btn">🚪 Выйти</button>
+            </div>
+        </div>
+        
+        <!-- Глобальная таблица лидеров -->
+        <div class="leaderboard">
+            <h3>🏆 ТОП-10 ЛУЧШИХ БОЙЦОВ 🏆</h3>
+            <table class="leaderboard-table">
+                <thead><tr><th>#</th><th>Боец</th><th>Рейтинг</th><th>Побед</th></tr></thead>
+                <tbody id="leaderboardBody"></tbody>
+            </table>
+        </div>
+        
+        <!-- Выбор режима -->
+        <div id="modeSelector">
+            <div class="game-modes">
+                <div class="mode-card" data-mode="solo">
+                    <div class="mode-icon">🎯</div>
+                    <h3>ОДИНОЧНЫЙ РЕЙД</h3>
+                    <p>Выбери сложность: Лёгкая, Средняя, Сложная</p>
+                </div>
+                <div class="mode-card" data-mode="multi">
+                    <div class="mode-icon">👥</div>
+                    <h3>КОМАНДНЫЙ БОЙ</h3>
+                    <p>Создай комнату или присоединись к битве</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Панель комнат -->
+        <div id="roomsPanel" class="rooms-panel hidden">
+            <div class="rooms-header">
+                <h3>🔥 АКТИВНЫЕ КОМНАТЫ 🔥</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button id="createRoomBtn" class="create-room-btn">➕ Создать комнату</button>
+                    <button id="backToMenuFromRooms" class="back-to-menu-btn">🏠 Вернуться в Арену</button>
+                </div>
+            </div>
+            <div id="roomList">Загрузка...</div>
+        </div>
+        
+        <!-- Зона игры -->
+        <div id="quizArea" style="display: none;"></div>
+    </div>
+</div>
+
+<!-- Модальное окно выбора сложности для одиночного режима -->
+<div id="difficultyModal" class="difficulty-modal hidden">
+    <div class="difficulty-card">
+        <h3>🎯 ВЫБЕРИ СЛОЖНОСТЬ</h3>
+        <div class="difficulty-option easy" data-difficulty="easy">
+            🟢 ЛЁГКАЯ<br>
+            <small>10 вопросов · Базовые ситуации (фишинг, пароли, соц. инженерия)</small>
+        </div>
+        <div class="difficulty-option medium" data-difficulty="medium">
+            🟡 СРЕДНЯЯ<br>
+            <small>20 вопросов · Базовые + администраторские (логи, команды)</small>
+        </div>
+        <div class="difficulty-option hard" data-difficulty="hard">
+            🔴 СЛОЖНАЯ<br>
+            <small>20 вопросов · Все категории (базовые + админские + форензика)</small>
+        </div>
+        <div class="difficulty-cancel" id="cancelDifficulty">❌ Отмена</div>
+    </div>
+</div>
+
+<!-- Модальное окно выбора режима для создания комнаты -->
+<div id="modeSelectModal" class="mode-modal hidden">
+    <div class="mode-modal-card">
+        <h3>🎯 ВЫБЕРИ РЕЖИМ БИТВЫ</h3>
+        <div class="mode-option" data-mode="basic">
+            🎯 БАЗОВЫЙ ТЕСТ ИБ<br>
+            <small>10 вопросов: фишинг, пароли, соц. инженерия</small>
+        </div>
+        <div class="mode-option" data-mode="admin">
+            ⚙️ АДМИНИСТРАТОРСКИЙ ТЕСТ<br>
+            <small>10 вопросов: логи, команды, Active Directory</small>
+        </div>
+        <div class="mode-option" data-mode="forensics">
+            🔍 ФОРЕНЗИКА + ИНЦИДЕНТЫ<br>
+            <small>8 вопросов: анализ логов, расследование</small>
+        </div>
+        <div class="mode-option-cancel" id="cancelModeSelect">❌ Отмена</div>
+    </div>
+</div>
+
+<script>
+    const socket = io();
+    let currentPlayer = null;
+    let currentRoom = null;
+    let currentQuestions = [];
+    let currentIndex = 0;
+    let currentScore = 0;
+    let answered = false;
+    let waitingForNext = false;
+    let selectedModeForRoom = null;
+    let isSoloMode = false;
+    
+    // ========== БАЗЫ ВОПРОСОВ ==========
+    
+    // Лёгкие вопросы (базовые ситуационные)
+    const EASY_QUESTIONS = [
+        { text: "Вы отошли от ноутбука на 5 минут в коворкинге. Что нужно сделать?", options: ["Ничего, вокруг свои люди", "Закрыть крышку/блокировка Win+L", "Выключить роутер", "Спрятать ноутбук"], correct: 1, explanation: "Блокировка экрана предотвращает доступ к данным за секунды." },
+        { text: "Получили письмо от 'службы поддержки Google' с просьбой подтвердить пароль. Ваши действия?", options: ["Перейти по ссылке", "Сообщить в IT-отдел", "Ответить на письмо", "Позвонить в Google"], correct: 1, explanation: "Фишинг. Не переходите по ссылкам." },
+        { text: "Нашли USB-флешку на парковке с надписью 'Финансовый отчёт'. Что делать?", options: ["Воткнуть в ПК", "Отдать службе безопасности", "Выкинуть", "Вставить дома"], correct: 1, explanation: "Флешка может содержать вредоносное ПО." },
+        { text: "Коллега просит дать свой пропуск в офис. Ваше решение?", options: ["Дать пропуск", "Отправить к администратору", "Дать с распиской", "Сообщить начальнику"], correct: 1, explanation: "Передача пропуска нарушает политику безопасности." },
+        { text: "Компьютер стал медленным, антивирус отключён. Что делать?", options: ["Перезагрузить", "Отключить от сети и сообщить в IT", "Скачать антивирус", "Продолжить"], correct: 1, explanation: "Признаки заражения. Отключение от сети предотвращает распространение." },
+        { text: "Звонит 'сотрудник IT', знает ваше имя, просит скачать программу. Ваши действия?", options: ["Скачать", "Перезвонить в IT по официальному номеру", "Отправить ссылку коллеге", "Запустить с антивирусом"], correct: 1, explanation: "Социальная инженерия. Всегда перезванивайте по официальному номеру." },
+        { text: "Что повышает безопасность Wi-Fi дома?", options: ["Оставить SSID по умолчанию", "WPA3/WPA2 + сложный пароль", "Отключить брандмауэр", "Включить WPS"], correct: 1, explanation: "Шифрование и сложный пароль — основа защиты. WPS уязвим." },
+        { text: "Получили SMS: 'Ваша карта заблокирована, перейдите по ссылке'. Ваши действия?", options: ["Перейти по ссылке", "Позвонить в банк по номеру с карты", "Ответить на SMS", "Переслать другу"], correct: 1, explanation: "Смишинг. Звоните в банк по официальному номеру." },
+        { text: "Использовать один пароль для нескольких сервисов — это?", options: ["Нормально", "Опасно — при утечке доступ ко всем", "Безопасно с 2FA", "Разрешено политикой"], correct: 1, explanation: "Повторное использование паролей — главная причина компрометации." },
+        { text: "Нашли листок с логином и паролем коллеги. Ваше действие?", options: ["Сфотографировать", "Убрать в стол", "Сообщить коллеге и уничтожить", "Использовать пароль"], correct: 2, explanation: "Нужно сообщить о нарушении политики безопасности." }
+    ];
+    
+    // Средние вопросы (администраторские)
+    const MEDIUM_QUESTIONS = [
+        { text: "В auth.log: множество Failed password для root, затем Accepted. Первое действие?", options: ["Увеличить сложность пароля", "Заблокировать IP через firewall", "Сменить пароль root", "Отключить SSH по паролю"], correct: 1, explanation: "Блокировка атакующего IP останавливает текущую атаку." },
+        { text: "Какой Event ID Windows указывает на успешный вход в систему?", options: ["4624", "4625", "4648", "4720"], correct: 0, explanation: "4624 — успешный вход. Важен также Source IP и Logon Type." },
+        { text: "Сервер устанавливает исходящие соединения на порт 4444. Что делать?", options: ["Заблокировать порт", "Отключить сервер", "Запустить tcpdump", "Сбросить iptables"], correct: 0, explanation: "Блокировка порта — быстрое сдерживание. Порт 4444 часто используется бэкдорами." },
+        { text: "В логах nginx: GET /page.php?id=1 UNION SELECT password. Тип атаки?", options: ["SQL-инъекция", "XSS", "Path traversal", "CSRF"], correct: 0, explanation: "Типичная SQL-инъекция через UNION." },
+        { text: "Как найти последние успешные входы админа на всех DC?", options: ["Get-ADUser", "Get-WinEvent с ID 4624", "whoami /groups", "net user"], correct: 1, explanation: "Get-WinEvent собирает события 4624 со всех контроллеров домена." },
+        { text: "Какие два условия гарантируют восстановление после ransomware?", options: ["Теневые копии", "Изолированные бэкапы", "Антивирус удалил", "Immutable storage"], correct: [1,3], explanation: "Изолированность и неизменяемость бэкапов — ключ к восстановлению." },
+        { text: "Подозрительный процесс слушает порт 31337. Как получить информацию?", options: ["kill -9", "strace -p", "cat /proc/pid/maps и lsof", "systemctl stop"], correct: 2, explanation: "Просмотр карт памяти и открытых файлов без остановки процесса." },
+        { text: "ARP-пакеты с подменой MAC-адреса шлюза — это?", options: ["ARP spoofing", "MAC flooding", "DNS spoofing", "DHCP starvation"], correct: 0, explanation: "ARP spoofing. Защита — Dynamic ARP Inspection (DAI)." },
+        { text: "Logon Type 10 с IP 10.0.0.45, затем изменения в AD. Вероятная атака?", options: ["Pass-the-hash", "Pass-the-ticket", "Легитимный админ", "RDP + PsExec"], correct: 3, explanation: "Через RDP получили сессию, затем использовали PsExec для AD." },
+        { text: "В заголовке письма Reply-To: fake@gmail.com. Это?", options: ["SPF-подделка", "Mail bombing", "Reply-to spoofing", "SMTP relay"], correct: 2, explanation: "Подмена адреса для ответа. Письмо уходит мошеннику." },
+        { text: "В Kubernetes под майнит криптовалюту. Как предотвратить?", options: ["Запретить привилегированные контейнеры", "Pod Security Standards + OPA", "Сканировать образы", "Ограничить CPU"], correct: 1, explanation: "Политики безопасности и валидация — комплексное решение." },
+        { text: "Команда для поиска изменённых за 2 часа файлов с записью хэшей:", options: ["find -mmin -120 -exec ls", "find -mmin -120 -exec rm", "find -mmin -120 -exec sha256sum", "find -mmin -120 -exec chmod"], correct: 2, explanation: "Сначала записать хэши изменённых файлов для анализа." }
+    ];
+    
+    // Сложные вопросы (форензика)
+    const HARD_QUESTIONS = [
+        { text: "history: 1003 cat /etc/shadow, 1005 rm -rf /var/log/auth.log. Что скрывает 1005?", options: ["Логи аутентификации", "Домашнюю папку", "Кэш браузера", "Временные файлы"], correct: 0, explanation: "Удаляет логи auth.log, чтобы затруднить расследование." },
+        { text: "Event 4624, Logon Type 10, Process: svchost.exe. Что необычно?", options: ["Logon Type", "Source IP", "Process Name", "Package"], correct: 2, explanation: "Обычно svchost.exe не инициирует вход; вероятна маскировка." },
+        { text: "Лог nginx: ?cmd=cat+/etc/passwd → 200, 2456 байт. Что означает код 200?", options: ["Ошибка сервера", "Успешный ответ", "Редирект", "Доступ запрещён"], correct: 1, explanation: "Код 200 + большой объём данных — вероятно, содержимое passwd." },
+        { text: "ps aux: /tmp/.X11-unix/.rsync --pool=1 --cpu=2. Что это?", options: ["Легитимный rsync", "Майнер криптовалюты", "Системный процесс", "Бэкдор"], correct: 1, explanation: "Скрытый путь и аргументы --pool, --cpu указывают на майнинг." },
+        { text: "Реестр: Run → C:\\Users\\Public\\svchost.exe. Почему подозрительно?", options: ["Нестандартный путь", "Имя процесса", "Ключ реестра", "Нет параметров"], correct: 0, explanation: "Настоящий svchost.exe в C:\\Windows\\System32." },
+        { text: "Как обнаружить сетевые соединения подозрительного процесса Linux?", options: ["ls -la", "lsof -p PID", "cat /etc/passwd", "systemctl status"], correct: 1, explanation: "lsof -p показывает открытые файлы и сетевые сокеты." },
+        { text: "Ransomware уничтожил теневые копии. Что гарантирует восстановление?", options: ["Обновление антивируса", "Изолированные immutable-бэкапы", "Переустановка ОС", "Отключение интернета"], correct: 1, explanation: "Только изолированные неизменяемые бэкапы гарантируют восстановление." },
+        { text: "Подозрительный DNS-запрос на редкий домен. Первое действие?", options: ["Заблокировать домен", "Проанализировать трафик", "Перезагрузить сервер", "Сменить пароли"], correct: 1, explanation: "Сначала анализ трафика для понимания масштаба." }
+    ];
+    
+    // Получение вопросов в зависимости от сложности
+    function getQuestionsByDifficulty(difficulty) {
+        if (difficulty === 'easy') {
+            const shuffled = [...EASY_QUESTIONS];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled.slice(0, 10);
+        } else if (difficulty === 'medium') {
+            const all = [...EASY_QUESTIONS, ...MEDIUM_QUESTIONS];
+            for (let i = all.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [all[i], all[j]] = [all[j], all[i]];
+            }
+            return all.slice(0, 20);
+        } else {
+            const all = [...EASY_QUESTIONS, ...MEDIUM_QUESTIONS, ...HARD_QUESTIONS];
+            for (let i = all.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [all[i], all[j]] = [all[j], all[i]];
+            }
+            return all.slice(0, 20);
+        }
+    }
+    
+    // DOM элементы
+    const authModal = document.getElementById('authModal');
+    const gameInterface = document.getElementById('gameInterface');
+    const userNameDisplay = document.getElementById('userNameDisplay');
+    const totalScoreDisplay = document.getElementById('totalScoreDisplay');
+    const gamesPlayedDisplay = document.getElementById('gamesPlayedDisplay');
+    const leaderboardBody = document.getElementById('leaderboardBody');
+    const modeSelector = document.getElementById('modeSelector');
+    const roomsPanel = document.getElementById('roomsPanel');
+    const quizArea = document.getElementById('quizArea');
+    const difficultyModal = document.getElementById('difficultyModal');
+    const modeSelectModal = document.getElementById('modeSelectModal');
+    
+    // Вход в игру
+    document.getElementById('enterGameBtn').onclick = () => {
+        const name = document.getElementById('playerName').value.trim();
+        if (!name) {
+            document.getElementById('authError').textContent = 'Введите имя бойца!';
+            return;
+        }
+        currentPlayer = { name: name, totalScore: 0, gamesPlayed: 0 };
+        userNameDisplay.textContent = name;
+        authModal.style.display = 'none';
+        gameInterface.style.display = 'block';
+        
+        socket.emit('getLeaderboard');
+        socket.emit('getRooms');
+    };
+    
+    // Выход
+    document.getElementById('logoutBtn').onclick = () => {
+        if (currentRoom) leaveRoom();
+        currentPlayer = null;
+        authModal.style.display = 'flex';
+        gameInterface.style.display = 'none';
+    };
+    
+    // Сокет-события
+    socket.on('leaderboardUpdate', (data) => {
+        leaderboardBody.innerHTML = data.map((p, i) => `
+            <tr><td>${i+1}</td><td>${escapeHtml(p.name)}</td><td>${p.totalScore}</td><td>${p.gamesPlayed}</td></tr>
+        `).join('');
+        if (currentPlayer) {
+            const myStats = data.find(p => p.name === currentPlayer.name);
+            if (myStats) {
+                totalScoreDisplay.textContent = myStats.totalScore;
+                gamesPlayedDisplay.textContent = myStats.gamesPlayed;
+                currentPlayer.totalScore = myStats.totalScore;
+                currentPlayer.gamesPlayed = myStats.gamesPlayed;
+            }
+        }
+    });
+    
+    socket.on('roomsList', (rooms) => {
+        const container = document.getElementById('roomList');
+        if (rooms.length === 0) {
+            container.innerHTML = '<div style="text-align:center;color:#888;">Нет активных комнат. Создай свою!</div>';
+            return;
+        }
+        const modeNames = { basic: '🎯 Базовый', admin: '⚙️ Админ', forensics: '🔍 Форензика' };
+        container.innerHTML = rooms.map(room => `
+            <div class="room-item">
+                <div>🏠 <strong>${escapeHtml(room.name)}</strong> <span class="room-badge">${modeNames[room.mode] || room.mode}</span></div>
+                <div>👥 ${room.players}/${room.maxPlayers} | 👑 ${escapeHtml(room.owner)}</div>
+                <button class="join-btn" data-room="${room.id}">🔫 Вступить</button>
+            </div>
+        `).join('');
+        document.querySelectorAll('.join-btn').forEach(btn => {
+            btn.onclick = () => joinRoom(btn.dataset.room);
+        });
+    });
+    
+    socket.on('roomUpdate', (room) => {
+        if (currentRoom && currentRoom.id === room.id) {
+            currentRoom = room;
+            updateLobbyDisplay();
+        }
+    });
+    
+    socket.on('gameStarted', (data) => {
+        currentQuestionIndex = data.questionIndex;
+        totalQuestions = data.totalQuestions;
+        currentRoom.questions = [data.question];
+        currentRoom.currentQuestion = 0;
+        showQuizQuestion(data.question, data.questionIndex, data.totalQuestions, data.players);
+    });
+    
+    socket.on('nextQuestion', (data) => {
+        currentQuestionIndex = data.questionIndex;
+        totalQuestions = data.totalQuestions;
+        currentRoom.players = data.players;
+        waitingForNext = false;
+        showQuizQuestion(data.question, data.questionIndex, data.totalQuestions, data.players);
+    });
+    
+    socket.on('answerResult', (data) => {
+        const feedbackDiv = document.getElementById('quizFeedback');
+        if (feedbackDiv) {
+            const correctLetter = String.fromCharCode(65 + data.correctAnswer);
+            if (data.isCorrect) {
+                feedbackDiv.innerHTML = `<span style="color:#00ff88;">✅ ${data.playerName} ответил ВЕРНО! +10 очков</span><br><span style="color:#ccc;">${escapeHtml(data.explanation)}</span>`;
+            } else {
+                feedbackDiv.innerHTML = `<span style="color:#ff8888;">❌ ${data.playerName} ошибся! Правильный ответ: ${correctLetter}</span><br><span style="color:#ccc;">${escapeHtml(data.explanation)}</span>`;
+            }
+        }
+        if (currentRoom) {
+            const player = currentRoom.players.find(p => p.id === data.playerId);
+            if (player) player.score = data.score;
+            updateParticipantsDisplay();
+        }
+    });
+    
+    socket.on('gameFinished', (data) => {
+        quizArea.innerHTML = `
+            <div class="quiz-area" style="text-align:center;">
+                <h2>🏆 БИТВА ЗАВЕРШЕНА 🏆</h2>
+                <div style="font-size:1.5rem; margin:20px;">Победитель: ${escapeHtml(data.winner)}</div>
+                <div class="participants" style="justify-content:center;">
+                    ${data.finalScores.map(p => `<div>${escapeHtml(p.name)}: ${p.score}⭐</div>`).join('')}
+                </div>
+                <button id="backToLobbyBtn" style="margin-top:30px; background:#00ff88; padding:12px 30px; border-radius:40px; border:none;">🏠 Вернуться в Арену</button>
+            </div>
+        `;
+        document.getElementById('backToLobbyBtn')?.addEventListener('click', () => {
+            currentRoom = null;
+            modeSelector.style.display = 'block';
+            quizArea.style.display = 'none';
+            roomsPanel.classList.add('hidden');
+            socket.emit('getLeaderboard');
+        });
+        socket.emit('getLeaderboard');
+    });
+    
+    // ========== ОДИНОЧНЫЙ РЕЖИМ ==========
+    function startSoloGame(difficulty) {
+        isSoloMode = true;
+        currentQuestions = getQuestionsByDifficulty(difficulty);
+        currentIndex = 0;
+        currentScore = 0;
+        answered = false;
+        
+        modeSelector.style.display = 'none';
+        roomsPanel.classList.add('hidden');
+        renderSoloQuestion();
+    }
+    
+    function renderSoloQuestion() {
+        if (currentIndex >= currentQuestions.length) {
+            finishSoloGame();
+            return;
+        }
+        
+        const q = currentQuestions[currentIndex];
+        const letters = ['A', 'B', 'C', 'D'];
+        quizArea.style.display = 'block';
+        quizArea.innerHTML = `
+            <div class="quiz-area">
+                <div class="room-info">
+                    <span>🎯 ОДИНОЧНЫЙ РЕЙД</span>
+                    <span>📋 Вопрос ${currentIndex+1}/${currentQuestions.length}</span>
+                    <span>⭐ Очки: ${currentScore}</span>
+                </div>
+                <div class="question-text">${escapeHtml(q.text)}</div>
+                <div class="options" id="soloOptions">
+                    ${q.options.map((opt, idx) => `<button class="option-btn" data-opt="${idx}">${letters[idx]}) ${escapeHtml(opt)}</button>`).join('')}
+                </div>
+                <div id="soloFeedback" class="feedback" style="display:none;"></div>
+                <button id="soloNextBtn" class="next-btn" style="display:none;">➡ Следующий вопрос</button>
+            </div>
+        `;
+        
+        const btns = document.querySelectorAll('#soloOptions .option-btn');
+        const feedbackDiv = document.getElementById('soloFeedback');
+        const nextBtn = document.getElementById('soloNextBtn');
+        
+        function handleAnswer(selectedIdx) {
+            if (answered) return;
+            answered = true;
+            const isCorrect = (selectedIdx === q.correct);
+            
+            if (isCorrect) {
+                currentScore += 10;
+                feedbackDiv.innerHTML = `<span style="color:#00ff88;">✅ ПРАВИЛЬНО! +10 очков</span><br><span style="color:#ccc;">${escapeHtml(q.explanation)}</span>`;
+            } else {
+                const correctLetter = String.fromCharCode(65 + q.correct);
+                feedbackDiv.innerHTML = `<span style="color:#ff8888;">❌ НЕВЕРНО! Правильный ответ: ${correctLetter}</span><br><span style="color:#ccc;">${escapeHtml(q.explanation)}</span>`;
+            }
+            feedbackDiv.style.display = 'block';
+            btns.forEach(btn => btn.disabled = true);
+            nextBtn.style.display = 'block';
+        }
+        
+        btns.forEach(btn => {
+            btn.onclick = () => handleAnswer(parseInt(btn.dataset.opt));
+        });
+        
+        nextBtn.onclick = () => {
+            currentIndex++;
+            answered = false;
+            renderSoloQuestion();
+        };
+    }
+    
+    function finishSoloGame() {
+        const maxScore = currentQuestions.length * 10;
+        let rankText = '';
+        let rankEmoji = '';
+        const percent = (currentScore / maxScore) * 100;
+        
+        if (percent >= 90) { rankEmoji = '🏆'; rankText = 'АБСОЛЮТНЫЙ ЭКСПЕРТ!'; }
+        else if (percent >= 75) { rankEmoji = '⚔️'; rankText = 'МАСТЕР КИБЕРБЕЗОПАСНОСТИ'; }
+        else if (percent >= 60) { rankEmoji = '🛡️'; rankText = 'ОПЫТНЫЙ ЗАЩИТНИК'; }
+        else if (percent >= 40) { rankEmoji = '🔰'; rankText = 'НАЧИНАЮЩИЙ БОЕЦ'; }
+        else { rankEmoji = '🌱'; rankText = 'НУЖНО ПОВТОРИТЬ'; }
+        
+        // Обновляем глобальную статистику (имитация сохранения)
+        if (currentPlayer) {
+            currentPlayer.totalScore += currentScore;
+            currentPlayer.gamesPlayed += 1;
+            totalScoreDisplay.textContent = currentPlayer.totalScore;
+            gamesPlayedDisplay.textContent = currentPlayer.gamesPlayed;
+        }
+        
+        quizArea.innerHTML = `
+            <div class="quiz-area" style="text-align:center;">
+                <h2>🎯 РЕЗУЛЬТАТЫ РЕЙДА 🎯</h2>
+                <div style="font-size:2rem; margin:20px;">${currentScore} / ${maxScore} баллов</div>
+                <div style="font-size:1.3rem; margin:10px;">${rankEmoji} ${rankText}</div>
+                <div style="margin:20px 0; text-align:left; background:#1a1f30; border-radius:24px; padding:15px;">
+                    <strong>📊 Статистика:</strong><br>
+                    • Всего вопросов: ${currentQuestions.length}<br>
+                    • Правильных ответов: ${currentScore/10}<br>
+                    • Точность: ${percent.toFixed(1)}%
+                </div>
+                <button id="soloRestartBtn" style="background:#00ff88; padding:12px 30px; border-radius:40px; border:none; margin:5px;">🔄 Новый рейд</button>
+                <button id="soloBackBtn" style="background:#00ff88; padding:12px 30px; border-radius:40px; border:none; margin:5px;">🏠 В арену</button>
+            </div>
+        `;
+        
+        document.getElementById('soloRestartBtn')?.addEventListener('click', () => {
+            difficultyModal.classList.remove('hidden');
+        });
+        document.getElementById('soloBackBtn')?.addEventListener('click', () => {
+            isSoloMode = false;
+            modeSelector.style.display = 'block';
+            quizArea.style.display = 'none';
+        });
+    }
+    
+    // Выбор режима (одиночный с выбором сложности)
+    document.querySelectorAll('.mode-card').forEach(card => {
+        card.onclick = () => {
+            if (card.dataset.mode === 'solo') {
+                difficultyModal.classList.remove('hidden');
+            } else {
+                modeSelector.style.display = 'none';
+                roomsPanel.classList.remove('hidden');
+                socket.emit('getRooms');
+            }
+        };
+    });
+    
+    // Кнопка возврата в главное меню из командного режима
+    document.getElementById('backToMenuFromRooms').onclick = () => {
+        roomsPanel.classList.add('hidden');
+        modeSelector.style.display = 'block';
+        // Если есть активная комната, выходим из неё
+        if (currentRoom) {
+            leaveRoom();
+        }
+    };
+    
+    // Выбор сложности в одиночном режиме
+    document.querySelectorAll('.difficulty-option').forEach(opt => {
+        opt.onclick = () => {
+            const difficulty = opt.dataset.difficulty;
+            difficultyModal.classList.add('hidden');
+            startSoloGame(difficulty);
+        };
+    });
+    
+    document.getElementById('cancelDifficulty').onclick = () => {
+        difficultyModal.classList.add('hidden');
+    };
+    
+    // Создание комнаты с выбором режима
+    document.getElementById('createRoomBtn').onclick = () => {
+        modeSelectModal.classList.remove('hidden');
+    };
+    
+    document.querySelectorAll('.mode-option').forEach(opt => {
+        opt.onclick = () => {
+            const mode = opt.dataset.mode;
+            const roomName = prompt('Название комнаты:', `Битва ${currentPlayer.name}`);
+            if (roomName) {
+                modeSelectModal.classList.add('hidden');
+                socket.emit('createRoom', { roomName, playerName: currentPlayer.name, mode }, (response) => {
+                    if (response.success) {
+                        currentRoom = response.room;
+                        roomsPanel.classList.add('hidden');
+                        showRoomLobby();
+                    } else {
+                        alert('Ошибка создания комнаты');
+                    }
+                });
+            }
+        };
+    });
+    
+    document.getElementById('cancelModeSelect').onclick = () => {
+        modeSelectModal.classList.add('hidden');
+    };
+    
+    function joinRoom(roomId) {
+        socket.emit('joinRoom', { roomId, playerName: currentPlayer.name }, (response) => {
+            if (response.success) {
+                currentRoom = response.room;
+                roomsPanel.classList.add('hidden');
+                showRoomLobby();
+            } else {
+                alert(response.error);
+            }
+        });
+    }
+    
+    function showRoomLobby() {
+        quizArea.style.display = 'block';
+        updateLobbyDisplay();
+    }
+    
+    function updateLobbyDisplay() {
+        if (!currentRoom) return;
+        const isOwner = currentRoom.ownerId === socket.id;
+        const modeNames = { basic: '🎯 Базовый тест ИБ', admin: '⚙️ Администраторский тест', forensics: '🔍 Форензика + Инциденты' };
+        quizArea.innerHTML = `
+            <div class="quiz-area">
+                <div class="room-info">
+                    <span>🏠 ${escapeHtml(currentRoom.name)}</span>
+                    <span>🎮 ${modeNames[currentRoom.mode] || currentRoom.mode}</span>
+                    <span>👥 ${currentRoom.players.length}/${currentRoom.maxPlayers}</span>
+                </div>
+                <div class="participants" id="lobbyPlayers">
+                    ${currentRoom.players.map(p => `<div class="participant ${p.id === socket.id ? 'current' : ''}">${escapeHtml(p.name)} 🎯</div>`).join('')}
+                </div>
+                ${isOwner ? `
+                    <button id="startBattleBtn" style="margin-top:20px; background:#00ff88; padding:12px; border-radius:40px; border:none; font-weight:bold;">⚔️ НАЧАТЬ БИТВУ ⚔️</button>
+                ` : '<div style="margin-top:20px; text-align:center; color:#888;">Ожидание начала битвы...</div>'}
+                <button id="leaveRoomBtn" style="margin-top:15px; background:rgba(255,70,70,0.5); padding:10px; border-radius:40px; border:none;">🚪 Покинуть комнату</button>
+            </div>
+        `;
+        document.getElementById('startBattleBtn')?.addEventListener('click', () => {
+            socket.emit('startGame', { roomId: currentRoom.id });
+        });
+        document.getElementById('leaveRoomBtn')?.addEventListener('click', leaveRoom);
+    }
+    
+    function leaveRoom() {
+        socket.emit('leaveRoom');
+        currentRoom = null;
+        modeSelector.style.display = 'block';
+        roomsPanel.classList.add('hidden');
+        quizArea.style.display = 'none';
+        socket.emit('getRooms');
+    }
+    
+    function showQuizQuestion(question, index, total, players) {
+        const letters = ['A', 'B', 'C', 'D'];
+        quizArea.innerHTML = `
+            <div class="quiz-area">
+                <div class="room-info">
+                    <span>🏠 ${escapeHtml(currentRoom.name)}</span>
+                    <span>📋 Вопрос ${index+1}/${total}</span>
+                </div>
+                <div class="participants" id="quizParticipants">
+                    ${players.map(p => `<div class="participant ${p.id === socket.id ? 'current' : ''}">${escapeHtml(p.name)}: ${p.score}⭐</div>`).join('')}
+                </div>
+                <div class="question-text">${escapeHtml(question.text)}</div>
+                <div class="options" id="quizOptions">
+                    ${question.options.map((opt, i) => `<button class="option-btn" data-opt="${i}">${letters[i]}) ${escapeHtml(opt)}</button>`).join('')}
+                </div>
+                <div id="quizFeedback" class="feedback" style="display:none;"></div>
+            </div>
+        `;
+        document.querySelectorAll('.option-btn').forEach(btn => {
+            btn.onclick = () => {
+                if (waitingForNext) return;
+                waitingForNext = true;
+                socket.emit('submitAnswer', { roomId: currentRoom.id, answerIndex: parseInt(btn.dataset.opt) });
+                document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+            };
+        });
+    }
+    
+    function updateParticipantsDisplay() {
+        const container = document.getElementById('quizParticipants');
+        if (container && currentRoom) {
+            container.innerHTML = currentRoom.players.map(p => `<div class="participant ${p.id === socket.id ? 'current' : ''}">${escapeHtml(p.name)}: ${p.score}⭐</div>`).join('');
+        }
+        const lobbyContainer = document.getElementById('lobbyPlayers');
+        if (lobbyContainer && currentRoom) {
+            lobbyContainer.innerHTML = currentRoom.players.map(p => `<div class="participant ${p.id === socket.id ? 'current' : ''}">${escapeHtml(p.name)} 🎯</div>`).join('');
+        }
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => m=='&'?'&amp;':m=='<'?'&lt;':'&gt;');
+    }
+    
+    setInterval(() => {
+        if (gameInterface.style.display === 'block') {
+            socket.emit('getLeaderboard');
+            socket.emit('getRooms');
+        }
+    }, 5000);
+</script>
+</body>
+</html>
